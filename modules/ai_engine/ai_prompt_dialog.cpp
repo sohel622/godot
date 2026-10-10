@@ -1,4 +1,5 @@
 #include "ai_prompt_dialog.h"
+#include "core/io/json.h"
 
 void AIPromptDialog::_on_send_pressed() {
 	String prompt = prompt_input->get_text();
@@ -6,8 +7,65 @@ void AIPromptDialog::_on_send_pressed() {
 
 	chat_history->set_text(chat_history->get_text() + "\nUser: " + prompt);
 	prompt_input->clear();
+	chat_history->set_text(chat_history->get_text() + "\nAI: Gemini প্রসেস করছে, অপেক্ষা করুন...");
 
-	chat_history->set_text(chat_history->get_text() + "\nAI: গেম অবজেক্ট এবং স্ক্রিপ্ট তৈরি করা হচ্ছে...");
+	// Gemini API কল সেটআপ
+	String api_key = "AQ.Ab8RN6JIUV--7s9mYIV0H7MhBNbjJ_nC1aHRdbJzXYdB4riW1Q";
+	String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + api_key;
+
+	Vector<String> headers;
+	headers.push_back("Content-Type: application/json");
+
+	// প্রম্পট ডাটা তৈরি
+	Dictionary content_part;
+	content_part["text"] = "You are a Godot Engine AI Assistant. Generate GDScript code or game scene tree for this request: " + prompt;
+
+	Array parts;
+	parts.push_back(content_part);
+
+	Dictionary content;
+	content["parts"] = parts;
+
+	Array contents;
+	contents.push_back(content);
+
+	Dictionary request_body;
+	request_body["contents"] = contents;
+
+	String body_json = JSON::stringify(request_body);
+
+	// HTTP রিকোয়েস্ট পাঠানো
+	if (!http_client) {
+		http_client = memnew(HTTPRequest);
+		add_child(http_client);
+		http_client->connect("request_completed", callable_mp(this, &AIPromptDialog::_on_request_completed));
+	}
+
+	http_client->request(url, headers, HTTPClient::METHOD_POST, body_json);
+}
+
+void AIPromptDialog::_on_request_completed(int p_status, int p_code, const PackedStringArray &p_headers, const PackedByteArray &p_data) {
+	String response_text;
+	response_text.parse_utf8((const char *)p_data.ptr(), p_data.size());
+
+	JSON json;
+	Error err = json.parse(response_text);
+	if (err == OK) {
+		Dictionary res = json.get_data();
+		if (res.has("candidates")) {
+			Array candidates = res["candidates"];
+			if (candidates.size() > 0) {
+				Dictionary cand = candidates[0];
+				Dictionary content = cand["content"];
+				Array parts = content["parts"];
+				Dictionary part = parts[0];
+				String ai_reply = part["text"];
+				chat_history->set_text(chat_history->get_text() + "\nGemini AI:\n" + ai_reply);
+				return;
+			}
+		}
+	}
+	chat_history->set_text(chat_history->get_text() + "\nAI: উত্তর পেতে সমস্যা হয়েছে বা কোটা শেষ।");
 }
 
 void AIPromptDialog::_on_attach_pressed() {
@@ -23,13 +81,13 @@ void AIPromptDialog::_on_attach_pressed() {
 }
 
 void AIPromptDialog::_on_file_selected(const String &p_path) {
-	chat_history->set_text(chat_history->get_text() + "\n[অ্যাসেট যুক্ত হয়েছে]: " + p_path);
+	chat_history->set_text(chat_history->get_text() + "\n[অ্যাসেট সংযুক্ত হয়েছে]: " + p_path);
 }
 
 void AIPromptDialog::_bind_methods() {}
 
 AIPromptDialog::AIPromptDialog() {
-	set_title("AI Game Builder Engine");
+	set_title("Sohel Engine - AI Builder");
 	set_min_size(Vector2i(550, 420));
 
 	VBoxContainer *main_vbox = memnew(VBoxContainer);
@@ -50,7 +108,7 @@ AIPromptDialog::AIPromptDialog() {
 	input_bar->add_child(attach_btn);
 
 	prompt_input = memnew(LineEdit);
-	prompt_input->set_placeholder("এখানে প্রম্পট লিখুন (যেমন: Generate a 3D arena)...");
+	prompt_input->set_placeholder("গেম তৈরির প্রম্পট লিখুন...");
 	prompt_input->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	input_bar->add_child(prompt_input);
 
