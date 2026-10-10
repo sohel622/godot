@@ -37,6 +37,8 @@
 #include "editor/plugins/editor_plugin.h"
 #include "editor/settings/editor_folding.h"
 #include "servers/display/display_server_enums.h"
+#include "modules/ai_engine/ai_prompt_dialog.h"
+
 
 typedef void (*EditorNodeInitCallback)();
 typedef void (*EditorPluginInitializeCallback)();
@@ -1067,7 +1069,11 @@ public:
 	bool ensure_main_scene(bool p_from_native);
 	bool validate_custom_directory();
 	void run_editor_script(const Ref<Script> &p_script);
-	bool is_scene_unsaved(int p_idx);
+  bool is_scene_unsaved(int p_idx);
+	Button *ai_top_bar_btn = nullptr;
+	AIPromptDialog *ai_dialog = nullptr;
+	void _open_ai_window();
+
 };
 
 struct EditorProgressBG {
