@@ -472,6 +472,11 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	default_urls["godotengine.org (Official)"] = "https://store.godotengine.org/api/v1";
 	_initial_set("asset_store/available_urls", default_urls, true);
 
+	/* AI Builder (Sohel Engine) */
+
+	// Gemini API key শুধু এই Editor Settings-এ থাকে, কোডে বা রিপোতে নয়।
+	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_PASSWORD, "ai_builder/gemini_api_key", "", "")
+
 	/* Interface */
 
 	bool is_android_editor = false;

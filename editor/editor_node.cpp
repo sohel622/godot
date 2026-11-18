@@ -8390,6 +8390,13 @@ void EditorNode::_update_main_menu_type() {
 	}
 }
 
+void EditorNode::_open_ai_window() {
+	if (ai_dialog == nullptr) {
+		return;
+	}
+	ai_dialog->popup_centered();
+}
+
 void EditorNode::_bottom_panel_resized() {
 	bottom_panel->set_bottom_panel_offset(center_split->get_split_offset());
 }
@@ -9253,6 +9260,17 @@ EditorNode::EditorNode() {
 	renderer->set_accessibility_name(TTRC("Renderer"));
 
 	right_menu_hb->add_child(renderer);
+
+	// Sohel Engine AI Builder: উপরের বারে AI বাটন, চাপলে AI ডায়ালগ খুলবে।
+	ai_top_bar_btn = memnew(Button);
+	ai_top_bar_btn->set_text(TTRC("AI Builder"));
+	ai_top_bar_btn->set_tooltip_text(TTRC("Open Sohel Engine AI Builder (Gemini). Set your API key in Editor Settings > AI Builder first."));
+	ai_top_bar_btn->set_focus_mode(Control::FOCUS_NONE);
+	ai_top_bar_btn->connect("pressed", callable_mp(this, &EditorNode::_open_ai_window));
+	right_menu_hb->add_child(ai_top_bar_btn);
+
+	ai_dialog = memnew(AIPromptDialog);
+	gui_base->add_child(ai_dialog);
 
 	if (can_expand) {
 		// Add spacer to avoid other controls under the window minimize/maximize/close buttons (right side).

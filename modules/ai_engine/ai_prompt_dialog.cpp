@@ -1,16 +1,34 @@
 #include "ai_prompt_dialog.h"
 #include "core/io/json.h"
 
+#ifdef TOOLS_ENABLED
+#include "editor/settings/editor_settings.h"
+#endif
+
 void AIPromptDialog::_on_send_pressed() {
 	String prompt = prompt_input->get_text();
 	if (prompt.is_empty()) return;
 
+	// Gemini API key কোডে লেখা থাকে না — Editor Settings থেকে পড়া হয়।
+	// Editor > Editor Settings > AI Builder > Gemini API Key-এ key বসাতে হয়।
+	String api_key;
+#ifdef TOOLS_ENABLED
+	if (EditorSettings::get_singleton() != nullptr) {
+		api_key = String(EditorSettings::get_singleton()->get_setting("ai_builder/gemini_api_key"));
+	}
+#endif
+
 	chat_history->set_text(chat_history->get_text() + "\nUser: " + prompt);
 	prompt_input->clear();
+
+	if (api_key.is_empty()) {
+		chat_history->set_text(chat_history->get_text() + "\nAI: Gemini API key দেওয়া হয়নি। Editor > Editor Settings > AI Builder-এ গিয়ে নিজের Gemini API key বসান, তারপর আবার চেষ্টা করুন।");
+		return;
+	}
+
 	chat_history->set_text(chat_history->get_text() + "\nAI: Gemini প্রসেস করছে, অপেক্ষা করুন...");
 
 	// Gemini API কল সেটআপ
-	String api_key = "AQ.Ab8RN6JIUV--7s9mYIV0H7MhBNbjJ_nC1aHRdbJzXYdB4riW1Q";
 	String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + api_key;
 
 	Vector<String> headers;
