@@ -1,5 +1,6 @@
 #include "ai_prompt_dialog.h"
 #include "core/io/json.h"
+#include "core/object/callable_mp.h"
 
 #ifdef TOOLS_ENABLED
 #include "editor/settings/editor_settings.h"
@@ -63,8 +64,7 @@ void AIPromptDialog::_on_send_pressed() {
 }
 
 void AIPromptDialog::_on_request_completed(int p_status, int p_code, const PackedStringArray &p_headers, const PackedByteArray &p_data) {
-	String response_text;
-	response_text.parse_utf8((const char *)p_data.ptr(), p_data.size());
+	String response_text = String::utf8((const char *)p_data.ptr(), p_data.size());
 
 	JSON json;
 	Error err = json.parse(response_text);
