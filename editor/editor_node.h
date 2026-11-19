@@ -57,6 +57,7 @@ class HBoxContainer;
 class ImageTexture;
 class MenuBar;
 class MenuButton;
+class ModelStoreDialog;
 class OptionButton;
 class Panel;
 class PanelContainer;
@@ -1073,6 +1074,10 @@ public:
 	Button *ai_top_bar_btn = nullptr;
 	AIPromptDialog *ai_dialog = nullptr;
 	void _open_ai_window();
+
+	Button *store_top_bar_btn = nullptr;
+	ModelStoreDialog *model_store_dialog = nullptr;
+	void _open_model_store();
 
 };
 

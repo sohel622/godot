@@ -118,6 +118,7 @@
 #include "editor/inspector/editor_resource_picker.h"
 #include "editor/inspector/editor_resource_preview.h"
 #include "editor/inspector/multi_node_edit.h"
+#include "editor/model_store/model_store.h"
 #include "editor/plugins/editor_plugin.h"
 #include "editor/plugins/editor_plugin_list.h"
 #include "editor/plugins/editor_resource_conversion_plugin.h"
@@ -8397,6 +8398,14 @@ void EditorNode::_open_ai_window() {
 	ai_dialog->popup_centered();
 }
 
+void EditorNode::_open_model_store() {
+	if (model_store_dialog == nullptr) {
+		return;
+	}
+	// Near full-screen overlay over the editor window.
+	model_store_dialog->popup_centered(Size2i(gui_base->get_size() * 0.92f));
+}
+
 void EditorNode::_bottom_panel_resized() {
 	bottom_panel->set_bottom_panel_offset(center_split->get_split_offset());
 }
@@ -9271,6 +9280,17 @@ EditorNode::EditorNode() {
 
 	ai_dialog = memnew(AIPromptDialog);
 	gui_base->add_child(ai_dialog);
+
+	// Sohel Engine 3D Model Store: উপরের বারে Store বাটন, চাপলে ১০০ মডেলের স্টোর খুলবে।
+	store_top_bar_btn = memnew(Button);
+	store_top_bar_btn->set_text(TTRC("Store"));
+	store_top_bar_btn->set_tooltip_text(TTRC("Open the 3D Model Store: 100 built-in models to preview and add to your scene."));
+	store_top_bar_btn->set_focus_mode(Control::FOCUS_NONE);
+	store_top_bar_btn->connect("pressed", callable_mp(this, &EditorNode::_open_model_store));
+	right_menu_hb->add_child(store_top_bar_btn);
+
+	model_store_dialog = memnew(ModelStoreDialog);
+	gui_base->add_child(model_store_dialog);
 
 	if (can_expand) {
 		// Add spacer to avoid other controls under the window minimize/maximize/close buttons (right side).
