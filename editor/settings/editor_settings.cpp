@@ -474,8 +474,13 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 
 	/* AI Builder (Sohel Engine) */
 
-	// Gemini API key শুধু এই Editor Settings-এ থাকে, কোডে বা রিপোতে নয়।
+	// API key শুধু এই Editor Settings-এ থাকে, কোডে বা রিপোতে নয়।
+	// পুরনো ai_builder/gemini_api_key এখনো fallback হিসেবে পড়া হয়।
 	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_PASSWORD, "ai_builder/gemini_api_key", "", "")
+	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_ENUM, "ai_builder/provider", "gemini", "gemini,Gemini;openai,OpenAI;anthropic,Anthropic;groq,Groq;custom,Custom (OpenAI-compatible)")
+	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_PASSWORD, "ai_builder/api_key", "", "")
+	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_NONE, "ai_builder/model", "gemini-1.5-flash", "")
+	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_NONE, "ai_builder/base_url", "https://generativelanguage.googleapis.com", "")
 
 	/* Interface */
 
