@@ -100,6 +100,8 @@ private:
 
 	CheckBox *edit_check_box = nullptr;
 
+	CheckBox *starter_check_box = nullptr;
+
 	EditorFileDialog *fdialog_project = nullptr;
 	EditorFileDialog *fdialog_install = nullptr;
 	AcceptDialog *dialog_error = nullptr;

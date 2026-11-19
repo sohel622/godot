@@ -31,14 +31,17 @@
 #include "project_dialog.h"
 
 #include "core/config/project_settings.h"
+#include "core/input/input_event.h"
 #include "core/io/dir_access.h"
 #include "core/io/zip_io.h"
 #include "core/object/callable_mp.h"
+#include "core/os/keyboard.h"
 #include "core/os/os.h"
 #include "core/version.h"
 #include "editor/editor_node.h"
 #include "editor/editor_string_names.h"
 #include "editor/gui/editor_file_dialog.h"
+#include "editor/project_manager/project_starter.h"
 #include "editor/settings/editor_settings.h"
 #include "editor/themes/editor_icons.h"
 #include "editor/themes/editor_scale.h"
@@ -570,6 +573,18 @@ void ProjectDialog::ok_pressed() {
 			}
 		}
 
+		// Scaffold the ready-to-play 3D starter game before project.godot
+		// is written, so a failure stops creation instead of leaving a
+		// project whose main scene points at missing files.
+		bool include_starter = starter_check_box != nullptr && starter_check_box->is_pressed();
+		if (include_starter) {
+			String starter_error;
+			if (!ProjectStarter::scaffold_starter_game(path, starter_error)) {
+				_set_message(vformat(TTRC("Couldn't create starter game files: %s"), starter_error), MESSAGE_ERROR);
+				return;
+			}
+		}
+
 		PackedStringArray project_features = ProjectSettings::get_required_features();
 		ProjectSettings::CustomMap initial_settings;
 
@@ -598,6 +613,22 @@ void ProjectDialog::ok_pressed() {
 		initial_settings["application/config/features"] = project_features;
 		initial_settings["application/config/name"] = project_name->get_text().strip_edges();
 		initial_settings["application/config/icon"] = "res://icon.svg";
+		if (include_starter) {
+			// The starter game is the project's main scene.
+			initial_settings["application/config/main_scene"] = "res://main.tscn";
+			// "grab" action (E key) used by scripts/player_controller.gd.
+			// The script also falls back to the E key directly when the
+			// action is missing, so grabbing keeps working either way.
+			Ref<InputEventKey> grab_key;
+			grab_key.instantiate();
+			grab_key->set_keycode(Key::E);
+			Dictionary grab_action;
+			grab_action["deadzone"] = 0.5;
+			Array grab_events;
+			grab_events.push_back(grab_key);
+			grab_action["events"] = grab_events;
+			initial_settings["input/grab"] = grab_action;
+		}
 		ProjectSettings::CustomMap extra_settings = EditorNode::get_initial_settings();
 		for (const KeyValue<String, Variant> &extra_setting : extra_settings) {
 			// Merge with other initial settings defined above.
@@ -875,6 +906,7 @@ void ProjectDialog::show_dialog(bool p_reset_name, bool p_is_confirmed) {
 		install_path_container->hide();
 		renderer_container->hide();
 		default_files_container->hide();
+		starter_check_box->hide();
 
 		callable_mp((Control *)project_name, &Control::grab_focus).call_deferred(false);
 		callable_mp(project_name, &LineEdit::select_all).call_deferred();
@@ -916,6 +948,7 @@ void ProjectDialog::show_dialog(bool p_reset_name, bool p_is_confirmed) {
 			install_path_container->hide();
 			renderer_container->hide();
 			default_files_container->hide();
+		starter_check_box->hide();
 			edit_check_box->show();
 
 			// Project path dialog is also opened; no need to change focus.
@@ -944,6 +977,7 @@ void ProjectDialog::show_dialog(bool p_reset_name, bool p_is_confirmed) {
 			install_path_container->hide();
 			renderer_container->show();
 			default_files_container->show();
+			starter_check_box->show();
 			edit_check_box->hide();
 
 			callable_mp((Control *)project_name, &Control::grab_focus).call_deferred(false);
@@ -958,6 +992,7 @@ void ProjectDialog::show_dialog(bool p_reset_name, bool p_is_confirmed) {
 			install_path_container->hide();
 			renderer_container->hide();
 			default_files_container->hide();
+		starter_check_box->hide();
 			edit_check_box->show();
 
 			callable_mp((Control *)project_path, &Control::grab_focus).call_deferred(false);
@@ -969,6 +1004,7 @@ void ProjectDialog::show_dialog(bool p_reset_name, bool p_is_confirmed) {
 			install_path_container->hide();
 			renderer_container->hide();
 			default_files_container->hide();
+		starter_check_box->hide();
 			edit_check_box->set_visible(duplicate_can_edit);
 
 			callable_mp((Control *)project_name, &Control::grab_focus).call_deferred(false);
@@ -1219,6 +1255,13 @@ ProjectDialog::ProjectDialog() {
 	Control *spacer = memnew(Control);
 	spacer->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	default_files_container->add_child(spacer);
+
+	// 3D starter game toggle (only shown for MODE_NEW).
+	starter_check_box = memnew(CheckBox);
+	starter_check_box->set_text(TTRC("Include 3D starter game (white floor, character, touch controls)"));
+	starter_check_box->set_pressed(true);
+	vb->add_child(starter_check_box);
+
 	fdialog_install = memnew(EditorFileDialog);
 	fdialog_install->set_access(EditorFileDialog::ACCESS_FILESYSTEM);
 	add_child(fdialog_install);
