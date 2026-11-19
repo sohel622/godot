@@ -30,7 +30,7 @@
 
 #include "model_store_catalog.h"
 
-#include "scene/3d/collision_shape_3d.h"
+#include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
@@ -643,7 +643,7 @@ static void _build_tower(Node3D *p_root, const ModelStoreCatalog::Item &p_item) 
 	_box(p_root, "Tower", Vector3(0, h * 0.5f * s, 0), Vector3(1.4f * s, h * s, 1.4f * s), p_item.color_a);
 	int floors = (p_item.variant == 1) ? 6 : 4;
 	for (int i = 0; i < floors; i++) {
-		float y = (0.6f + i * (h - 1.0f) / Math::max(1, floors - 1)) * s;
+		float y = (0.6f + i * (h - 1.0f) / MAX(1, floors - 1)) * s;
 		_box(p_root, "WindowF" + itos(i), Vector3(-0.35f * s, y, 0.71f * s), Vector3(0.4f * s, 0.4f * s, 0.03f), p_item.color_b);
 		_box(p_root, "WindowF2" + itos(i), Vector3(0.35f * s, y, 0.71f * s), Vector3(0.4f * s, 0.4f * s, 0.03f), p_item.color_b);
 	}

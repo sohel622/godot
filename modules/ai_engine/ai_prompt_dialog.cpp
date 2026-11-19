@@ -225,7 +225,7 @@ void AIPromptDialog::_on_resize_handle_gui_input(const Ref<InputEvent> &p_event,
 				resizing = false;
 				active_handle = -1;
 			}
-			accept_event();
+			get_viewport()->set_input_as_handled();
 		}
 		return;
 	}
@@ -234,7 +234,7 @@ void AIPromptDialog::_on_resize_handle_gui_input(const Ref<InputEvent> &p_event,
 	if (mouse_motion.is_valid()) {
 		if (resizing && active_handle == p_handle && mouse_motion->get_button_mask().has_flag(MouseButtonMask::LEFT)) {
 			_apply_resize_drag(mouse_motion->get_relative(), p_handle);
-			accept_event();
+			get_viewport()->set_input_as_handled();
 		}
 		return;
 	}
@@ -248,7 +248,7 @@ void AIPromptDialog::_on_resize_handle_gui_input(const Ref<InputEvent> &p_event,
 			resizing = false;
 			active_handle = -1;
 		}
-		accept_event();
+		get_viewport()->set_input_as_handled();
 		return;
 	}
 
@@ -256,7 +256,7 @@ void AIPromptDialog::_on_resize_handle_gui_input(const Ref<InputEvent> &p_event,
 	if (drag.is_valid()) {
 		if (resizing && active_handle == p_handle) {
 			_apply_resize_drag(drag->get_relative(), p_handle);
-			accept_event();
+			get_viewport()->set_input_as_handled();
 		}
 		return;
 	}
@@ -1005,9 +1005,9 @@ AIPromptDialog::ActionResult AIPromptDialog::_execute_action(const Dictionary &p
 		node->set_name(name);
 		Node3D *node_3d = Object::cast_to<Node3D>(node);
 		if (node_3d != nullptr) {
-			node_3d->set_position(_dict_vector3(p_action, "position", Vector3.ZERO));
-			node_3d->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3.ZERO));
-			node_3d->set_scale(_dict_vector3(p_action, "scale", Vector3.ONE));
+			node_3d->set_position(_dict_vector3(p_action, "position", Vector3(0, 0, 0)));
+			node_3d->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3(0, 0, 0)));
+			node_3d->set_scale(_dict_vector3(p_action, "scale", Vector3(1, 1, 1)));
 		}
 		_add_node_with_undo(parent, node, scene_root, "Add Node " + name);
 		result.ok = true;
@@ -1069,9 +1069,9 @@ AIPromptDialog::ActionResult AIPromptDialog::_execute_action(const Dictionary &p
 		MeshInstance3D *instance = memnew(MeshInstance3D);
 		instance->set_name(name);
 		instance->set_mesh(mesh);
-		instance->set_position(_dict_vector3(p_action, "position", Vector3.ZERO));
-		instance->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3.ZERO));
-		instance->set_scale(_dict_vector3(p_action, "scale", Vector3.ONE));
+		instance->set_position(_dict_vector3(p_action, "position", Vector3(0, 0, 0)));
+		instance->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3(0, 0, 0)));
+		instance->set_scale(_dict_vector3(p_action, "scale", Vector3(1, 1, 1)));
 		_add_node_with_undo(parent, instance, scene_root, "Add Mesh " + name);
 		result.ok = true;
 		result.message = "Mesh added: " + name + " (" + mesh_type + ")";
@@ -1094,8 +1094,8 @@ AIPromptDialog::ActionResult AIPromptDialog::_execute_action(const Dictionary &p
 			return result;
 		}
 		light->set_name(name);
-		light->set_position(_dict_vector3(p_action, "position", Vector3.ZERO));
-		light->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3.ZERO));
+		light->set_position(_dict_vector3(p_action, "position", Vector3(0, 0, 0)));
+		light->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3(0, 0, 0)));
 		light->set_param(Light3D::PARAM_ENERGY, (float)_dict_double(p_action, "energy", 1.0));
 		if (light_type == "omni" || light_type == "spot") {
 			light->set_param(Light3D::PARAM_RANGE, (float)_dict_double(p_action, "range", 10.0));
@@ -1115,7 +1115,7 @@ AIPromptDialog::ActionResult AIPromptDialog::_execute_action(const Dictionary &p
 		Camera3D *camera = memnew(Camera3D);
 		camera->set_name(name);
 		camera->set_position(_dict_vector3(p_action, "position", Vector3(0, 3, 6)));
-		camera->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3.ZERO));
+		camera->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3(0, 0, 0)));
 		camera->set_fov((float)_dict_double(p_action, "fov", 70.0));
 		camera->set_current(_dict_bool(p_action, "current", true));
 		_add_node_with_undo(parent, camera, scene_root, "Add Camera " + name);
@@ -1152,9 +1152,9 @@ AIPromptDialog::ActionResult AIPromptDialog::_execute_action(const Dictionary &p
 		instance->set_name(name);
 		Node3D *instance_3d = Object::cast_to<Node3D>(instance);
 		if (instance_3d != nullptr) {
-			instance_3d->set_position(_dict_vector3(p_action, "position", Vector3.ZERO));
-			instance_3d->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3.ZERO));
-			instance_3d->set_scale(_dict_vector3(p_action, "scale", Vector3.ONE));
+			instance_3d->set_position(_dict_vector3(p_action, "position", Vector3(0, 0, 0)));
+			instance_3d->set_rotation_degrees(_dict_vector3(p_action, "rotation", Vector3(0, 0, 0)));
+			instance_3d->set_scale(_dict_vector3(p_action, "scale", Vector3(1, 1, 1)));
 		}
 		_add_node_with_undo(parent, instance, scene_root, "Add Model " + name);
 		result.ok = true;

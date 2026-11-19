@@ -91,7 +91,7 @@ private:
 	void _on_preview_gui_input(const Ref<InputEvent> &p_event);
 
 protected:
-	void _process(double p_delta) override;
+	void _notification(int p_what);
 	static void _bind_methods();
 
 public:

@@ -36,9 +36,9 @@
 #include "core/math/math_funcs.h"
 #include "core/object/callable_mp.h"
 #include "editor/editor_interface.h"
-#include "editor/undo_redo.h"
+#include "editor/editor_undo_redo_manager.h"
 #include "scene/3d/camera_3d.h"
-#include "scene/3d/directional_light_3d.h"
+#include "scene/3d/light_3d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/world_environment.h"
 #include "scene/gui/box_container.h"
@@ -65,12 +65,15 @@ ModelStoreDialog::ModelStoreDialog() {
 	_rebuild_grid();
 }
 
-void ModelStoreDialog::_process(double p_delta) {
-	// Slow auto-spin of the preview so models feel alive; dragging
-	// takes over while the user orbits.
-	if (is_visible() && !preview_dragging && preview_model != nullptr) {
-		preview_yaw += (float)p_delta * 0.35f;
-		_update_preview_camera();
+void ModelStoreDialog::_notification(int p_what) {
+	if (p_what == NOTIFICATION_PROCESS) {
+		// Slow auto-spin of the preview so models feel alive; dragging
+		// takes over while the user orbits. (Object::notification() calls
+		// every class's _notification, so the base classes still get theirs.)
+		if (is_visible() && !preview_dragging && preview_model != nullptr) {
+			preview_yaw += get_process_delta_time() * 0.35f;
+			_update_preview_camera();
+		}
 	}
 }
 
@@ -97,7 +100,7 @@ void ModelStoreDialog::_build_ui() {
 	HBoxContainer *filter_bar = memnew(HBoxContainer);
 	vb->add_child(filter_bar);
 	search_box = memnew(LineEdit);
-	search_box->set_placeholder_text("Search models...");
+	search_box->set_placeholder("Search models...");
 	search_box->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	search_box->connect(SceneStringName(text_changed), callable_mp(this, &ModelStoreDialog::_on_search_changed));
 	filter_bar->add_child(search_box);
@@ -363,7 +366,7 @@ void ModelStoreDialog::_insert_selected() {
 	SubViewport *editor_vp = EditorInterface::get_singleton()->get_editor_viewport_3d(0);
 	Camera3D *editor_cam = editor_vp != nullptr ? editor_vp->get_camera_3d() : nullptr;
 	if (editor_cam != nullptr) {
-		Vector3 forward = -editor_cam->get_global_transform().basis.get_axis(2);
+		Vector3 forward = -editor_cam->get_global_transform().basis.get_column(2);
 		forward.y = 0;
 		if (forward.length_squared() > 0.001f) {
 			forward = forward.normalized();
