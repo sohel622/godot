@@ -95,9 +95,13 @@ String ProjectStarter::_player_controller_script() {
 ## Movement is camera-relative and uses gravity from the project settings.
 ##
 ## External model: set `external_model` in the Inspector to a PackedScene
-## (e.g. an imported .glb/.tscn character). The procedural humanoid is
+## (e.g. an imported .glb/.tscn character), or just drop a character file
+## into res://models/ (Walking_Left_Turn_0.fbx, character.fbx/.glb/.gltf/
+## .tscn) - the player finds it on its own. The procedural humanoid is
 ## hidden and the model's own "grab", "run" (or "walk") and "idle"
-## animations are used when it has them.
+## animations are used when it has them. A model with no "run" name (e.g.
+## a Mixamo take called "Take 001") uses its longest animation while
+## moving, and the Mixamo joint-visualization mesh is hidden.
 
 @export var speed := 5.0
 @export var jump_velocity := 4.5
@@ -163,6 +167,14 @@ func _ensure_standalone_visibility() -> void:
 	add_child(floor_body)
 
 func _setup_external_model() -> void:
+	# Auto-detect a dropped-in character file: if no model was set in the
+	# Inspector, use the first of these that exists in the project. Put
+	# the Mixamo .fbx (or a .glb/.gltf/.tscn character) in res://models/.
+	if external_model == null:
+		for model_path in ["res://models/Walking_Left_Turn_0.fbx", "res://models/character.fbx", "res://models/character.glb", "res://models/character.gltf", "res://models/character.tscn"]:
+			if ResourceLoader.exists(model_path):
+				external_model = load(model_path) as PackedScene
+				break
 	if external_model == null:
 		return
 	var inst: Node = external_model.instantiate()
@@ -170,21 +182,41 @@ func _setup_external_model() -> void:
 		return
 	rig.add_child(inst)
 	_hide_meshes(rig, inst)
+	_hide_joints_mesh(inst)
 	for node in inst.find_children("*", "AnimationPlayer", true, false):
 		var ap := node as AnimationPlayer
 		if ap == null:
 			continue
-		if ap.has_animation("grab"):
-			_external_anim_player = ap
+		_external_anim_player = ap
 		for run_name in ["run", "Run", "walk", "Walk"]:
 			if ap.has_animation(run_name):
 				_external_run_anim = run_name
 				break
+		if _external_run_anim == "":
+			# No run/walk name (e.g. a Mixamo take called "Take 001"):
+			# use the longest animation - that is the real clip.
+			var longest := ""
+			var longest_len := 0.0
+			for anim_name in ap.get_animation_list():
+				var anim := ap.get_animation(anim_name)
+				if anim != null and anim.get_length() > longest_len:
+					longest_len = anim.get_length()
+					longest = anim_name
+			_external_run_anim = longest
 		for idle_name in ["idle", "Idle"]:
 			if ap.has_animation(idle_name):
 				_external_idle_anim = idle_name
 				break
 		break
+
+func _hide_joints_mesh(p_node: Node) -> void:
+	# Mixamo .fbx files also carry a "Beta_Joints" mesh (spheres at every
+	# joint, only for Mixamo's own viewer). Hide it so the character does
+	# not render with blobs on its joints.
+	for child in p_node.find_children("*", "MeshInstance3D", true, false):
+		var mi := child as MeshInstance3D
+		if mi != null and String(mi.name).contains("Joints"):
+			mi.visible = false
 
 func _hide_meshes(p_node: Node, p_keep: Node) -> void:
 	for child in p_node.get_children():
@@ -373,7 +405,7 @@ func _wants_grab() -> bool:
 	return Input.is_physical_key_pressed(KEY_E)
 
 func _do_grab() -> void:
-	if _external_anim_player != null:
+	if _external_anim_player != null and _external_anim_player.has_animation("grab"):
 		_external_anim_player.play("grab")
 		_grab_timer = 0.8
 		return
@@ -721,10 +753,16 @@ Application > Run > Main Scene).
 
 Use your own character model
 ----------------------------
-Import a .glb / .gltf / .tscn character, open player.tscn, select the
-Player node and set the `external_model` property in the Inspector.
-The procedural humanoid is hidden and the model's own "grab", "run"
-and "idle" animations are used when it has one.
+Drop a character file into res://models/ (e.g. the Mixamo
+Walking_Left_Turn_0.fbx, or character.fbx / character.glb /
+character.gltf / character.tscn) and the player uses it automatically
+- the procedural humanoid is hidden and the model's own animations play
+(a Mixamo take such as "Take 001" plays while moving, since it has no
+"run" name; its longest animation is used). Or open player.tscn, select
+the Player node and set the `external_model` property in the Inspector
+to any imported character. The Mixamo joint-visualization mesh
+("Beta_Joints") is hidden automatically; the character has no textures,
+so it renders with flat material colors.
 
 Uncheck "Include 3D starter game" in the Create New Project dialog
 to create an empty project instead.
