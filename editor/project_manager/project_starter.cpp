@@ -96,7 +96,8 @@ String ProjectStarter::_player_controller_script() {
 ##
 ## External model: set `external_model` in the Inspector to a PackedScene
 ## (e.g. an imported .glb/.tscn character). The procedural humanoid is
-## hidden and the model's own "grab" animation is used when it has one.
+## hidden and the model's own "grab", "run" (or "walk") and "idle"
+## animations are used when it has them.
 
 @export var speed := 5.0
 @export var jump_velocity := 4.5
@@ -107,6 +108,8 @@ const GRAVITY_FALLBACK := 9.8
 
 var _grab_timer := 0.0
 var _external_anim_player: AnimationPlayer = null
+var _external_run_anim := ""
+var _external_idle_anim := ""
 
 @onready var rig: Node3D = $Rig
 @onready var camera_pivot: Node3D = $CameraPivot
@@ -116,6 +119,48 @@ var _external_anim_player: AnimationPlayer = null
 func _ready() -> void:
 	_setup_external_model()
 	_build_animations()
+	_ensure_standalone_visibility()
+
+func _ensure_standalone_visibility() -> void:
+	# player.tscn has no lights or environment of its own: run on its own
+	# it would be a black void (no light, no sky). When this scene IS the
+	# main scene, add the same sky, sun and white floor main.tscn has, so
+	# Play never shows a black screen. When the player is instanced inside
+	# main.tscn, current_scene is Main and nothing is added here.
+	if get_tree() == null or get_tree().current_scene != self:
+		return
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.53, 0.74, 0.94)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(1, 1, 1)
+	env.ambient_light_energy = 0.9
+	var world_env := WorldEnvironment.new()
+	world_env.environment = env
+	add_child(world_env)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, 30, 0)
+	sun.light_energy = 1.1
+	sun.shadow_enabled = true
+	add_child(sun)
+	var floor_body := StaticBody3D.new()
+	floor_body.name = "Floor"
+	var floor_mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(20, 0.5, 20)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 1, 1)
+	box.material = mat
+	floor_mesh.mesh = box
+	floor_mesh.position = Vector3(0, -0.25, 0)
+	floor_body.add_child(floor_mesh)
+	var floor_col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(20, 0.5, 20)
+	floor_col.shape = shape
+	floor_col.position = Vector3(0, -0.25, 0)
+	floor_body.add_child(floor_col)
+	add_child(floor_body)
 
 func _setup_external_model() -> void:
 	if external_model == null:
@@ -127,9 +172,19 @@ func _setup_external_model() -> void:
 	_hide_meshes(rig, inst)
 	for node in inst.find_children("*", "AnimationPlayer", true, false):
 		var ap := node as AnimationPlayer
-		if ap != null and ap.has_animation("grab"):
+		if ap == null:
+			continue
+		if ap.has_animation("grab"):
 			_external_anim_player = ap
-			break
+		for run_name in ["run", "Run", "walk", "Walk"]:
+			if ap.has_animation(run_name):
+				_external_run_anim = run_name
+				break
+		for idle_name in ["idle", "Idle"]:
+			if ap.has_animation(idle_name):
+				_external_idle_anim = idle_name
+				break
+		break
 
 func _hide_meshes(p_node: Node, p_keep: Node) -> void:
 	for child in p_node.get_children():
@@ -182,6 +237,72 @@ func _build_animations() -> void:
 	walk.track_insert_key(arm_r, 0.6, Vector3(0.45, 0.0, 0.0))
 	anim_player.add_animation("walk", walk)
 
+	# Run: bigger swings than walk, plus a bounce and a forward lean
+	# (0.5 s, loops). Used while moving on the ground.
+	if not anim_player.has_animation("run"):
+		var run := Animation.new()
+		run.length = 0.5
+		run.loop_mode = Animation.LOOP_LINEAR
+		var run_leg_l := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_leg_l, "Rig/LegL_Pivot:rotation")
+		run.track_insert_key(run_leg_l, 0.0, Vector3(0.9, 0.0, 0.0))
+		run.track_insert_key(run_leg_l, 0.25, Vector3(-0.9, 0.0, 0.0))
+		run.track_insert_key(run_leg_l, 0.5, Vector3(0.9, 0.0, 0.0))
+		var run_leg_r := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_leg_r, "Rig/LegR_Pivot:rotation")
+		run.track_insert_key(run_leg_r, 0.0, Vector3(-0.9, 0.0, 0.0))
+		run.track_insert_key(run_leg_r, 0.25, Vector3(0.9, 0.0, 0.0))
+		run.track_insert_key(run_leg_r, 0.5, Vector3(-0.9, 0.0, 0.0))
+		var run_arm_l := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_arm_l, "Rig/ArmL_Pivot:rotation")
+		run.track_insert_key(run_arm_l, 0.0, Vector3(-0.7, 0.0, 0.0))
+		run.track_insert_key(run_arm_l, 0.25, Vector3(0.7, 0.0, 0.0))
+		run.track_insert_key(run_arm_l, 0.5, Vector3(-0.7, 0.0, 0.0))
+		var run_arm_r := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_arm_r, "Rig/ArmR_Pivot:rotation")
+		run.track_insert_key(run_arm_r, 0.0, Vector3(0.7, 0.0, 0.0))
+		run.track_insert_key(run_arm_r, 0.25, Vector3(-0.7, 0.0, 0.0))
+		run.track_insert_key(run_arm_r, 0.5, Vector3(0.7, 0.0, 0.0))
+		var run_bob := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_bob, "Rig:position")
+		run.track_insert_key(run_bob, 0.0, Vector3(0, 0, 0))
+		run.track_insert_key(run_bob, 0.25, Vector3(0, 0.08, 0))
+		run.track_insert_key(run_bob, 0.5, Vector3(0, 0, 0))
+		var run_lean := run.add_track(Animation.TYPE_VALUE)
+		run.track_set_path(run_lean, "Rig/Body:rotation")
+		run.track_insert_key(run_lean, 0.0, Vector3(-0.12, 0.0, 0.0))
+		run.track_insert_key(run_lean, 0.25, Vector3(-0.12, 0.0, 0.0))
+		run.track_insert_key(run_lean, 0.5, Vector3(-0.12, 0.0, 0.0))
+		anim_player.add_animation("run", run)
+
+	# Idle: gentle breathing so the character feels alive while standing
+	# (2.0 s, loops). Also resets the run lean back to upright.
+	if not anim_player.has_animation("idle"):
+		var idle := Animation.new()
+		idle.length = 2.0
+		idle.loop_mode = Animation.LOOP_LINEAR
+		var idle_arm_l := idle.add_track(Animation.TYPE_VALUE)
+		idle.track_set_path(idle_arm_l, "Rig/ArmL_Pivot:rotation")
+		idle.track_insert_key(idle_arm_l, 0.0, Vector3(0.08, 0.0, 0.0))
+		idle.track_insert_key(idle_arm_l, 1.0, Vector3(-0.08, 0.0, 0.0))
+		idle.track_insert_key(idle_arm_l, 2.0, Vector3(0.08, 0.0, 0.0))
+		var idle_arm_r := idle.add_track(Animation.TYPE_VALUE)
+		idle.track_set_path(idle_arm_r, "Rig/ArmR_Pivot:rotation")
+		idle.track_insert_key(idle_arm_r, 0.0, Vector3(-0.08, 0.0, 0.0))
+		idle.track_insert_key(idle_arm_r, 1.0, Vector3(0.08, 0.0, 0.0))
+		idle.track_insert_key(idle_arm_r, 2.0, Vector3(-0.08, 0.0, 0.0))
+		var idle_bob := idle.add_track(Animation.TYPE_VALUE)
+		idle.track_set_path(idle_bob, "Rig:position")
+		idle.track_insert_key(idle_bob, 0.0, Vector3(0, 0, 0))
+		idle.track_insert_key(idle_bob, 1.0, Vector3(0, 0.02, 0))
+		idle.track_insert_key(idle_bob, 2.0, Vector3(0, 0, 0))
+		var idle_lean := idle.add_track(Animation.TYPE_VALUE)
+		idle.track_set_path(idle_lean, "Rig/Body:rotation")
+		idle.track_insert_key(idle_lean, 0.0, Vector3(0, 0, 0))
+		idle.track_insert_key(idle_lean, 1.0, Vector3(0, 0, 0))
+		idle.track_insert_key(idle_lean, 2.0, Vector3(0, 0, 0))
+		anim_player.add_animation("idle", idle)
+
 func _physics_process(delta: float) -> void:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	var touch_ui := get_tree().get_first_node_in_group("touch_ui")
@@ -216,10 +337,28 @@ func _physics_process(delta: float) -> void:
 	if _grab_timer > 0.0:
 		_grab_timer -= delta
 	elif direction.length() > 0.1 and is_on_floor():
-		if anim_player.current_animation != "walk":
-			anim_player.play("walk")
-	elif anim_player.current_animation == "walk":
+		_play_move_animation()
+	elif direction.length() <= 0.1 and is_on_floor():
+		_play_idle_animation()
+	elif anim_player.current_animation == "run" or anim_player.current_animation == "walk":
 		anim_player.stop()
+
+func _play_move_animation() -> void:
+	# External model first: use its own run (or walk) animation.
+	if _external_anim_player != null and _external_run_anim != "":
+		if _external_anim_player.current_animation != _external_run_anim:
+			_external_anim_player.play(_external_run_anim)
+		return
+	if anim_player.current_animation != "run":
+		anim_player.play("run")
+
+func _play_idle_animation() -> void:
+	if _external_anim_player != null and _external_idle_anim != "":
+		if _external_anim_player.current_animation != _external_idle_anim:
+			_external_anim_player.play(_external_idle_anim)
+		return
+	if anim_player.current_animation != "idle":
+		anim_player.play("idle")
 
 func _apply_look(p_look: Vector2) -> void:
 	if p_look == Vector2.ZERO:
@@ -236,6 +375,7 @@ func _wants_grab() -> bool:
 func _do_grab() -> void:
 	if _external_anim_player != null:
 		_external_anim_player.play("grab")
+		_grab_timer = 0.8
 		return
 	if anim_player.has_animation("grab"):
 		anim_player.play("grab")
@@ -524,6 +664,11 @@ surface_material_override/0 = SubResource("Material_floor")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 shape = SubResource("BoxShape_floor")
 
+[node name="MainCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 8)
+fov = 70.0
+current = true
+
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector3(0, 0.1, 0)
 
@@ -558,12 +703,28 @@ Files
   scripts/virtual_joystick.gd  - floating touch joystick control
   scripts/touch_ui.gd          - builds the two joysticks + GRAB button
 
+Animations (all written in GDScript, in player_controller.gd)
+------------------------------------------------------------
+  grab - right arm reaches forward and comes back (0.8 s, plays once)
+  run  - legs and arms swing wide, body bounces and leans forward
+  walk - slower leg and arm swing (kept as a fallback)
+  idle - gentle breathing while standing still
+Moving plays "run", standing still plays "idle", E / GRAB plays "grab".
+If an external model is used, its own "run" (or "walk"), "idle" and
+"grab" animations play instead when the model has them.
+
+Black screen? Never on a fresh project: main.tscn has a sky, a sun and
+a fallback camera, and player.tscn builds its own sky, sun and floor
+when it is run on its own. If Play still shows black, check that
+main.tscn is the main scene (Project > Project Settings >
+Application > Run > Main Scene).
+
 Use your own character model
 ----------------------------
 Import a .glb / .gltf / .tscn character, open player.tscn, select the
 Player node and set the `external_model` property in the Inspector.
-The procedural humanoid is hidden and the model's own "grab" animation
-is used when it has one.
+The procedural humanoid is hidden and the model's own "grab", "run"
+and "idle" animations are used when it has one.
 
 Uncheck "Include 3D starter game" in the Create New Project dialog
 to create an empty project instead.

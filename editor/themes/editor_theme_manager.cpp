@@ -357,6 +357,15 @@ EditorThemeManager::ThemeConfiguration EditorThemeManager::_create_theme_config(
 				preset_accent_color = Color(0.15, 0.55, 0.82);
 				preset_base_color = Color(0.89, 0.86, 0.79);
 				preset_contrast = light_contrast;
+			} else if (config.preset == "Unreal") {
+				// Sohel Engine default: Unreal-style dark editor — darker
+				// charcoal panels, flat low contrast, visible borders and
+				// a warm amber accent (Unreal brand orange, matching the
+				// gear-and-flame logo).
+				preset_accent_color = Color(0.95, 0.55, 0.15);
+				preset_base_color = Color(0.09, 0.09, 0.10);
+				preset_contrast = 0.15;
+				preset_draw_extra_borders = true;
 			} else { // Default
 				preset_accent_color = Color(0.337, 0.62, 1.0);
 				preset_base_color = Color(0.161, 0.161, 0.161);
